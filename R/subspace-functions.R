@@ -319,7 +319,7 @@ getHullPoints <- function(nsamps, OmegaSamps, Osamps, type="mag",
 #' @examples
 #'
 #' @export
-covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, ngroups, nlabeled=20, group_names=NULL) {
+covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, to_plot=1:nrow(s2samps), nlabeled=20) {
 
   if(ncol(Vsub) != 2) {
     stop("Please provide 2-dimensional subspace")
@@ -338,11 +338,13 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, ngroups, nlabele
 
   pos_x_indices <- order(Vsub[, 1], decreasing=TRUE)[1:npos]
   neg_x_indices <- order(Vsub[, 1], decreasing=FALSE)[1:nneg]
-  pos_y_indices <- order(Vsub[, 2], decreasing=TRUE)[1:npos]
-  neg_y_indices <- order(Vsub[, 2], decreasing=FALSE)[1:nneg]
+  pos_y_indices <- setdiff(order(Vsub[, 2], decreasing=TRUE), c(pos_x_indices, neg_x_indices))[1:npos]
+  neg_y_indices <- setdiff(order(Vsub[, 2], decreasing=FALSE), c(pos_x_indices, pos_y_indices))[1:nneg]
 
   lambda_max <- lambda_min <- angle <- c()
-  for(k in 1:ngroups) {
+
+  ngroups <- length(to_plot)
+  for(k in to_plot) {
 
     pmPsi <- getPostMeanPsi(Osamps[, , k , ],
                             omegaSamps[, k, ],
@@ -361,6 +363,7 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, ngroups, nlabele
 
   }
 
+  group_names <- names(to_plot)
   if(is.null(group_names))
     group_names = factor(1:ngroups)
 
@@ -395,41 +398,43 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, ngroups, nlabele
     data  = subset(label_data, type=="pos_x"),
     aes(x=x, y=y, label=label),
     nudge_x = 0.5,
-    force=30,
+    force=1,
     segment.size  = 0.5,
     segment.color = "grey50",
     direction     = "y",
-    hjust         = 0
+    hjust         = 0,
+    size = 2
   ) +
     geom_label_repel(
       data = subset(label_data, type=="neg_x"),
       aes(x=x, y=y, label=label),
-      force=30,
+      force=1,
       nudge_x = -0.5,
       segment.size  = 0.5,
       segment.color = "grey50",
       direction     = "y",
-      hjust         = 1
+      hjust         = 1,
+      size= 2
     ) +
     geom_label_repel(
       data = subset(label_data, type=="pos_y"),
       aes(x=x, y=y, label=label),
-      force=30,
-      nudge_y = 0.5,
+      force=1,
+      nudge_y = 0.05,
       segment.size  = 0.5,
       segment.color = "grey50",
-      direction     = "y",
-      vjust         = 1
+      direction = "both",
+      size = 2
     ) +
     geom_label_repel(
       data = subset(label_data, type=="neg_y"),
       aes(x=x, y=y, label=label),
-      nudge_y = -0.5,
-      force=30,
+      force=1,
+      nudge_y = -0.05,
       segment.size  = 0.5,
       segment.color = "grey50",
-      direction     = "y",
-      vjust         = 0
+      direction     = "both",
+      size=2
     )
 
   p
