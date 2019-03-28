@@ -1,8 +1,3 @@
-library(mvtnorm)
-library(magrittr)
-library(scales)
-library(car)
-
 ## Compute frobenius norms
 ## H = Hierachical eigen pooling
 ## e.g. compare trace (U_k^T U_J)^2
@@ -55,10 +50,11 @@ createNormMatrix <- function(eigenlist, vindices, type="H") {
 #' @return
 #' @export
 #'
+#' @import ggplot2
 #' @examples
 posteriorPlot <- function(Osamps, OmegaSamps, s2samps, nsamps, groups_to_plot,
                           probRegion=0.95, hline=NULL,  ymax=NULL, type = "mag",
-                          plotPoints=TRUE, polar=FALSE) {
+                          plotPoints=TRUE, polar=FALSE, legend=TRUE) {
 
   ngroups <- length(groups_to_plot)
 
@@ -116,7 +112,8 @@ posteriorPlot <- function(Osamps, OmegaSamps, s2samps, nsamps, groups_to_plot,
 
   if(!is.null(hline))
     p <- p + geom_hline(yintercept=hline, lty=2)
-
+  if(!legend)
+    p <- p + theme(legend.position = "none")
 
   p + ylab(ylab) + xlab(expression("angle, acos("~U[1]^T*V[1]~")"))
 
@@ -126,7 +123,8 @@ posteriorPlot <- function(Osamps, OmegaSamps, s2samps, nsamps, groups_to_plot,
 posteriorPlotPolar <- function(Osamps, OmegaSamps, s2samps, nsamps, groups,
                           probRegion=0.95, hline=NULL, col=NULL,
                           pch=NULL, lty=NULL, ymax=NULL, logRatio=FALSE,
-                          plotPoints=TRUE, polar=FALSE, cex.axis=1.5) {
+                          plotPoints=TRUE, polar=FALSE, cex.axis=1.5,
+                          legend=TRUE) {
 
     ngroups <- length(groups)
 
@@ -240,6 +238,8 @@ getHullPoints <- function(nsamps, OmegaSamps, Osamps, type="mag",
 #' @param cex.pts
 #'
 #' @return
+#' @import ggplot2
+#' @import tibble
 #' @importFrom car ellipse
 #' @importFrom gridExtra tableGrob grid.arrange
 #' @importFrom grid grid.rect gpar
@@ -249,7 +249,8 @@ getHullPoints <- function(nsamps, OmegaSamps, Osamps, type="mag",
 #' @examples
 #'
 #' @export
-covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1:nrow(s2samps), nlabeled=20) {
+covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1:nrow(s2samps), 
+                             nlabeled=20, legend=TRUE) {
 
   if(ncol(Vsub) != 2) {
     stop("Please provide 2-dimensional subspace")
@@ -367,7 +368,7 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1
       size=2
     )
 
-  p
+  p + theme(legend.position = "top")
 
 }
 
@@ -425,17 +426,17 @@ eigenvalueDists <- function(OmegaSamps, nsamps, groups,
 #' @param cex.pts
 #'
 #' @return
-#' @importFrom car ellipse
-#' @importFrom gridExtra tableGrob grid.arrange
-#' @importFrom grid grid.rect gpar
-#' @importFrom ggrepel geom_label_repel
-#' @importFrom ggforce geom_ellipse
+#' @import patchwork
 #'
 #' @examples
 #'
 #' @export
-create_plots <- function(V, Osamps, omegaSamps, s2samps, group1=1, group2=2, view=c(1,2), to_plot=1:dim(Osamps)[3], nlabeled=20, group_names=NULL, R=ncol(V)) {
+create_plots <- function(V, samples, group1=1, group2=2, view=c(1,2), nlabeled=20, 
+                         to_plot=NULL, group_names=NULL, R=ncol(V)) {
 
+  Osamps <- samples$Osamps
+  s2samps <- samples$s2samps
+  omegaSamps <- samples$omegaSamps
 
   g1 <- group1
   g2 <- group2
@@ -472,7 +473,7 @@ create_plots <- function(V, Osamps, omegaSamps, s2samps, group1=1, group2=2, vie
   posterior_plot <- posteriorPlot(Osamps_proj, omegaSamps_proj,
                                   samples$s2samps, nsamps=50,
                                   groups_to_plot=to_plot,
-                                  probRegion=0.95)
+                                  probRegion=0.95, legend=FALSE)
 
   biplot <- covarianceBiplot(Vstar, Osamps_proj, omegaSamps_proj, samples$s2samps,
                              groups_to_plot=to_plot, nlabeled=40)
@@ -703,6 +704,11 @@ computeMembershipProbabilities <-  function(Y, SigmaList,
 #'
 #' @examples
 getRank <- function(Y) {
+  
+  ## If we pass in a list of data matrices
+  ## estimate the rank using the pooled data
+  if(is.list(Y))
+     Y <- do.call(rbind, Y)
 
   svals <- svd(Y)$d
 
