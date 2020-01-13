@@ -6,7 +6,7 @@
 Multi-group Shared Subspace Covariance
 Estimation
 
-R package for the shared subspace model described in [https://arxiv.org/abs/1607.03045](http://jmlr.org/papers/v20/18-484.html)
+R package for the shared subspace model described in [http://jmlr.org/papers/v20/18-484.html](http://jmlr.org/papers/v20/18-484.html)
 
 ## Installation
 
