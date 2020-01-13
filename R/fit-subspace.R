@@ -28,12 +28,12 @@
 #' @examples
 #'
 #' @export
-fitBayesianSpike <- function(V, Ylist,
-                            R=S, Q=S-R,
-                            niters=100, nskip=1, init=NULL,
+fitBayesianSpike <- function(V, Ylist, R=NULL, Q=NULL,
+                            niters=100, nwarmup = 0, nskip=1, init=NULL,
                             verbose=TRUE, sigmaTruthList=NULL, draw=c(),
                             printLoss=FALSE) {
-
+    
+        
     ngroups = length(Ylist)
     nvec = sapply(Ylist, nrow)
 
@@ -41,16 +41,29 @@ fitBayesianSpike <- function(V, Ylist,
     nskip <- nskip
     nsamps <- floor(niters/nskip)
 
+    if(verbose) {
+      prog <- progress_estimated((niters + nwarmup)/nskip)
+    }
+    
     S <- ncol(V)
     P <- ncol(Ylist[[1]])
+    
+    if(is.null(R)) {
+      R <- S
+    }
+    
+    if(is.null(Q)) {
+      Q <- S-R
+    }
 
     for(k in 1:length(Ylist)) {
         if(ncol(Ylist[[k]]) != P)
           stop("All matrices in Ylist must have the same number of columns")
     }
 
-    if(R + Q > S)
-        stop("R + Q must be less than S")
+    if(R + Q > S) {
+      stop("R + Q must be less than S")
+    }
 
     Osamps <- array(dim=c(S, R + Q, ngroups, nsamps))
     omegaSamps <- array(dim=c(R + Q, ngroups, ncol=nsamps))
@@ -106,7 +119,7 @@ fitBayesianSpike <- function(V, Ylist,
     draw <- c(draw, O=TRUE, s2=TRUE, omega=TRUE)
     draw <- draw[unique(names(draw))]
 
-    for ( i in 1:niters ) {
+    for ( i in 1:(niters + nwarmup)) {
 
         if(Q > 0) {
 
@@ -166,21 +179,22 @@ fitBayesianSpike <- function(V, Ylist,
             Olist[[k]] <- Ok
 
             ## save samples
-            if(i %% nskip==0) {
-                Osamps[, , k, i/nskip] <- Olist[[k]]
-                omegaSamps[, k, i/nskip] <- OmegaList[[k]]
-                s2samps[k, i/nskip] <- s2vec[k]
+            if((i - nwarmup) %% nskip==0) {
+                Osamps[, , k, (i-nwarmup)/nskip] <- Olist[[k]]
+                omegaSamps[, k, (i-nwarmup)/nskip] <- OmegaList[[k]]
+                s2samps[k, (i-nwarmup)/nskip] <- s2vec[k]
             }
 
         }
-
-        if (i %% nskip==0) {
+  
+        if ((i - nwarmup) %% nskip==0) {
             if(verbose & !printLoss)
-                print(sprintf("Iteration %i", i))
+                prog$tick()$print()
+                ## print(sprintf("Iteration %i", i))
         }
 
         if(i %% nskip==0 & verbose & printLoss) {
-            stop("Needs updating")
+            stop("Not up to date beyond here!!!")
             sl <- 0
             if(is.null(sigmaTruthInvList)) {
                 ## Print loss relative to starting point

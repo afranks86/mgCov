@@ -17,54 +17,32 @@ knitr::opts_chunk$set(
 
 Multi-group Shared Subspace Covariance Estimation
 
-<!-- [![Travis-CI Build Status](https://travis-ci.org/thomasp85/patchwork.svg?branch=master)](https://travis-ci.org/thomasp85/patchwork) -->
-<!-- [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/thomasp85/patchwork?branch=master&svg=true)](https://ci.appveyor.com/project/thomasp85/patchwork) -->
-<!-- [![CRAN_Release_Badge](http://www.r-pkg.org/badges/version-ago/patchwork)](https://CRAN.R-project.org/package=patchwork) -->
-<!-- [![CRAN_Download_Badge](http://cranlogs.r-pkg.org/badges/patchwork)](https://CRAN.R-project.org/package=patchwork) -->
-
-To do
+Reference: [Shared Subspace Models for Multi-Group Covariance Estimation](https://arxiv.org/abs/1607.03045)
 
 ## Installation
 
-You can install `mgcov` from github with:
+Install `mgCov` using `devtools`:
 
 ```{r gh-installation, eval = FALSE}
 # install.packages("devtools")
 devtools::install_github("afranks86/mgCov")
 ```
 
-## Example
+## Usage
 
-The usage of `mgCov` 
+Multi-group covariance estimation proceeds in a few steps.  
 
-```{r example}
-library(mgCov)
-data(leukemia)
+## Subspace estimation
+`getRank(data_list)` takes either a list of data matrices or a single matrix.  [Gavish and Donoho (2013)](https://arxiv.org/abs/1305.5870)
 
-S <- getRank(data_list)
+`subspaceEM` 
 
-Vinit <- mgCov::subspaceInit(data_list, S)
-EMFit <- subspaceEM(data_list, S=S)
+## Bayesian inference for projected data covariance matrices
 
-Vfit <- EMFit$V ## inferred basis for the shared subspace
-```
+## Visualizing differences
 
-Now run (conditional) Bayesian covariance estimation using the inferred subspace.  
-
-```{r}
-samples <- mgCov::fitBayesianSpike(V=Vfit, Ylist=data_list, 
-                            niters=1000, nskip=10, verbose=FALSE)
-```
-
-
-```{r}
-groups_to_plot = c(1, 2, 4)
-names(groups_to_plot) <- names(data_list)[groups_to_plot]
-create_plots(V=Vfit, samples, group1=2, group2=4, to_plot = groups_to_plot, view=c(1, 2))
-```
 
 
 ### Advanced features
 
-
-TO DO
+Coming soon.

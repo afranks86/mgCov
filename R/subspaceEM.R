@@ -18,15 +18,33 @@
 #' @return
 #'
 #' @examples
+#' 
+#' @importFrom Matrix bdiag
 #'
 #' @export
-subspaceEM <- function(Ylist, P, S, R=S, Q=S-R, nvec,
-                       Vstart=NULL, stiefelAlgo=1, lambda=0,
+subspaceEM <- function(Ylist, S, R=S, Q=S-R, Vstart=NULL, stiefelAlgo=2, 
+                       lambda=0,
                        EM_iters=10,
                        M_iters=100,
                        verbose=FALSE) {
 
 
+  P <- ncol(Ylist[[1]])
+  
+  if(missing(S))
+    stop("Must provide a rank for the shared subspace estimation")
+  
+  nvec <- numeric(length(Ylist))
+  for(k in 1:length(Ylist)) {
+    
+    if(ncol(Ylist[[k]]) != P)
+      stop("Each data matrix must have the same number of columns")
+
+    nvec[k] <- nrow(Ylist[[k]])
+  }
+  
+
+  
   ## Function to optimize
   F <- function(V, PhiList, PrecVec) {
     obj <- 0
@@ -100,7 +118,7 @@ subspaceEM <- function(Ylist, P, S, R=S, Q=S-R, nvec,
     dF_t <- function(V) dF(V, PhiList, PrecVec)
 
     ## ------- M-step -----------
-
+    
     Vnew <- optStiefel(F_t, dF_t, Vinit=Vstart, method="bb",
                        maxIters= M_iters,
                        searchParams = NULL, verbose=verbose)
@@ -120,3 +138,97 @@ subspaceEM <- function(Ylist, P, S, R=S, Q=S-R, nvec,
   list(V=Vnew, PhiList=PhiList, PrecVec=PrecVec)
 }
 
+
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
+subspaceOptim <- function(Ylist, S, R=S, Q=S-R, Vstart=NULL, stiefelAlgo=2, 
+                          lambda=0,
+                          maxIters=10000,
+                          verbose=FALSE) {
+  
+  
+  P <- ncol(Ylist[[1]])
+  
+  ###### Marginal Likelihood
+  
+  dF <- function(V) {
+    
+    YVlist <- lapply(Ylist, function(x) x %*% V)
+    
+    G <- 0
+    for(k in 1:length(Ylist)) {
+      
+      VSV <- t(YVlist[[k]]) %*% YVlist[[k]] + 1e-5 * diag(S)
+      VSVinv <- solve(VSV)
+      
+      G <- G +
+        nvec[k]/2 * (VSVinv) %*% t(YVlist[[k]]) %*% Ylist[[k]]
+
+    }
+    t(G)
+  }
+  
+  F<- function(V) {
+
+    YVlist <- lapply(Ylist, function(x) x %*% V)
+    obj <- 0
+    for(k in 1:length(Ylist)) {
+      VSV <- t(YVlist[[k]]) %*% YVlist[[k]] + 1e-5*diag(S)
+      obj <- obj + nvec[k]/2 * log(det(VSV))  +
+        nvec[k]*(P-S)/2 * log(sum(Ylist[[k]]^2) - tr(VSV))
+    }
+    obj
+  }
+  
+  Vnew <- optStiefel(F, dF, Vinit=Vstart, 
+                     method="bb",
+                     maxIters= maxIters,
+                     searchParams = NULL, 
+                     verbose=verbose)
+  
+  Vnew
+  
+}
+
+
+
+#' @title Subspace initialization
+#'
+#' @param Ylist 
+#' @param S 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+subspaceInit <- function(Ylist, S) {
+
+  P <- ncol(Ylist[[1]])
+  ngroups <- length(Ylist)
+  nvec <- sapply(Ylist, function(Yk) nrow(Yk))
+
+  isoVar <- sapply(1:ngroups, function(i) median(apply(Ylist[[i]], 2, var)))
+  weightsList <- sapply(1:ngroups, function(i) {
+    evals <- svd(Ylist[[i]]/sqrt(nvec[i]))$d^2
+    dp <- suppressWarnings(
+      ifelse(evals/isoVar[i] <= (1+sqrt(P/nvec[i])), 
+             0, 
+             sqrt((1-P/nvec[i]/(evals/isoVar[i]-1)^2) / (1+P/nvec[i]/(evals/isoVar[i]-1))))
+    )
+    weights <- 1/(1-dp) - 1
+    weights[1:min(nvec[i], S)]
+  })
+  
+  ## Weighted initialization
+  Vinit <- svd(do.call(cbind, lapply(1:ngroups, function(k) {
+    svdk <- svd(t(Ylist[[k]]))$u[, 1:min(nvec[k], S)] %*%  diag(weightsList[[k]][1:min(nvec[k], S)])
+  })))$u[, 1:S]
+  
+  Vinit <- Vinit %*% rustiefel(S, S)
+  Vinit
+  
+}

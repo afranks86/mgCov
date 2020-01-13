@@ -54,7 +54,7 @@ createNormMatrix <- function(eigenlist, vindices, type="H") {
 #' @examples
 posteriorPlot <- function(Osamps, OmegaSamps, s2samps, nsamps, groups_to_plot,
                           probRegion=0.95, hline=NULL,  ymax=NULL, type = "mag",
-                          plotPoints=TRUE, polar=FALSE, legend=TRUE) {
+                          plotPoints=TRUE, polar=FALSE, legend=TRUE, col_values=NULL) {
 
   ngroups <- length(groups_to_plot)
 
@@ -112,10 +112,16 @@ posteriorPlot <- function(Osamps, OmegaSamps, s2samps, nsamps, groups_to_plot,
 
   if(!is.null(hline))
     p <- p + geom_hline(yintercept=hline, lty=2)
-  if(!legend)
+  if(!legend) {
     p <- p + theme(legend.position = "none")
-
-  p + ylab(ylab) + xlab(expression("angle, acos("~U[1]^T*V[1]~")"))
+  } else{
+    p <- p + theme(legend.position = "top", legend.title=element_blank())
+  }
+  if(!is.null(col_values))
+    p <- p + scale_color_manual(values=col_values)
+  
+  p + ylab(ylab) + xlab(expression("angle, acos("~U[1]^T*V[1]~")")) + 
+      theme(legend.title=element_blank()) 
 
 }
 
@@ -250,22 +256,26 @@ getHullPoints <- function(nsamps, OmegaSamps, Osamps, type="mag",
 #'
 #' @export
 covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1:nrow(s2samps), 
-                             nlabeled=20, legend=TRUE) {
+                             nlabeled=20, legend=TRUE, label_size=2, col_values=NULL) {
 
   if(ncol(Vsub) != 2) {
     stop("Please provide 2-dimensional subspace")
   }
+  
+  if(is.null(rownames(Vsub)))
+    rownames(Vsub) <- 1:nrow(Vsub)
 
   npos <- round(nlabeled/4)
   nneg <- round(nlabeled/4)
 
+  xlimits <- c(-1.1, 1.1)*max(abs(Vsub))
+  ylimits <- c(-1.1, 1.1)*max(abs(Vsub))
 
-  xlimits <- c(-1.1, 1.1)*max(abs(Vsub[, 1:2]))
-  ylimits <- c(-1.1, 1.1)*max(abs(Vsub[, 1:2]))
-
-  p <- ggplot(as_tibble(Vsub[, 1:2]), colnames=c("V1", "V2")) +
+  p <- ggplot(as_tibble(Vsub), colnames=c("V1", "V2")) +
     geom_point(aes(x=V1, y=V2), size=0.5, col="light grey") +
-    theme_bw(base_size=20) + xlim(xlimits) + ylim(ylimits)
+    theme_bw(base_size=20) + xlim(xlimits) + ylim(ylimits) +
+    theme(legend.text=element_text(size=15)) + xlab("") + ylab("")
+  
 
   pos_x_indices <- order(Vsub[, 1], decreasing=TRUE)[1:npos]
   neg_x_indices <- order(Vsub[, 1], decreasing=FALSE)[1:nneg]
@@ -311,17 +321,25 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1
   ## Plot Ellipses
   ## 95% contour
   p <- p + geom_ellipse(data=ellipse_tibble,
-                        aes(x0 = 0, y0 = 0, a = sd_max*2*max(xlimits)*0.25, b = sd_min*2*max(xlimits)*0.25, angle = angle, col=Group), size=1.1)
+                        aes(x0 = 0, y0 = 0, a = sd_max*2*max(xlimits)*0.25, 
+                            b = sd_min*2*max(xlimits)*0.25, 
+                            angle = angle, color=Group), size=1.1)
 
   ## 50% contour
   p <- p + geom_ellipse(data=ellipse_tibble,
-                        aes(x0 = 0, y0 = 0, a = sd_max*0.67*max(xlimits)*0.25, b = sd_min*0.67*max(xlimits)*.25, angle = angle, col=Group), size=1.1)
+                        aes(x0 = 0, y0 = 0, 
+                            a = sd_max*0.67*max(xlimits)*0.25, 
+                            b = sd_min*0.67*max(xlimits)*.25, 
+                            angle = angle, color=Group), size=1.1)
 
-
+  if(!is.null(col_values))
+    p <- p + scale_color_manual(values=col_values)  
+  
   ## Add labels
   all_indices <- c(pos_x_indices, neg_x_indices, pos_y_indices, neg_y_indices)
   label_data <- tibble(x=Vsub[all_indices, 1], y=Vsub[all_indices, 2],
-                       label=rownames(Vsub)[all_indices], type=rep(c("pos_x", "neg_x", "pos_y", "neg_y"), each=nlabeled/4))
+                       label=rownames(Vsub)[all_indices], 
+                       type=rep(c("pos_x", "neg_x", "pos_y", "neg_y"), each=nlabeled/4))
 
   p <- p + geom_point(data=label_data, aes(x=x, y=y), col="red", size=1.5)
 
@@ -334,7 +352,7 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1
     segment.color = "grey50",
     direction     = "y",
     hjust         = 0,
-    size = 2
+    size = label_size
   ) +
     geom_label_repel(
       data = subset(label_data, type=="neg_x"),
@@ -345,7 +363,7 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1
       segment.color = "grey50",
       direction     = "y",
       hjust         = 1,
-      size= 2
+      size= label_size
     ) +
     geom_label_repel(
       data = subset(label_data, type=="pos_y"),
@@ -355,7 +373,7 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1
       segment.size  = 0.5,
       segment.color = "grey50",
       direction = "both",
-      size = 2
+      size = label_size
     ) +
     geom_label_repel(
       data = subset(label_data, type=="neg_y"),
@@ -365,10 +383,12 @@ covarianceBiplot <- function(Vsub, Osamps, omegaSamps, s2samps, groups_to_plot=1
       segment.size  = 0.5,
       segment.color = "grey50",
       direction     = "both",
-      size=2
+      size=label_size
     )
 
-  p + theme(legend.position = "top")
+
+  
+  p + theme(legend.position = "top", legend.title=element_blank())
 
 }
 
@@ -431,32 +451,23 @@ eigenvalueDists <- function(OmegaSamps, nsamps, groups,
 #' @examples
 #'
 #' @export
-create_plots <- function(V, samples, group1=1, group2=2, view=c(1,2), nlabeled=20, 
-                         to_plot=NULL, group_names=NULL, R=ncol(V)) {
+create_plots <- function(V, samples, group1=1, group2=NULL, view=c(1,2), nlabeled=20, 
+                         to_plot=NULL, group_names=NULL, R=ncol(V), 
+                         label_size=2, plot_type="both", col_values=NULL, ...) {
 
   Osamps <- samples$Osamps
   s2samps <- samples$s2samps
   omegaSamps <- samples$omegaSamps
 
-  g1 <- group1
-  g2 <- group2
-
-  pmPsi1 <- getPostMeanPsi(Osamps[, , g1 , ],
-                           omegaSamps[, g1, ],
-                           s2samps[g1, ], 100)
-  pmPsi2 <- getPostMeanPsi(Osamps[, , g2 , ],
-                           omegaSamps[, g2, ],
-                           s2samps[g2, ], 100)
-
-  O <- svd(pmPsi1[1:R, 1:R] - pmPsi2[1:R, 1:R])$u[, view]
-
-  ## rotate_basis()
+  rotation_result <- rotate_basis(V, samples, group1, group2)
 
   ngroups <- dim(Osamps)[3]
 
-  Vstar <- V[, 1:R] %*% O
-  Osamps_proj <- array(dim = c(2, 2, ngroups, 1000))
-  omegaSamps_proj <- array(dim = c(2, ngroups, 1000))
+  Vstar <- rotation_result$rotV[, view]
+  O <- rotation_result$rotMat[, view]
+  
+  Osamps_proj <- array(dim = c(2, 2, ngroups, 100))
+  omegaSamps_proj <- array(dim = c(2, ngroups, 100))
 
   for(i in 1:100) {
     for(k in 1:ngroups) {
@@ -473,48 +484,69 @@ create_plots <- function(V, samples, group1=1, group2=2, view=c(1,2), nlabeled=2
   posterior_plot <- posteriorPlot(Osamps_proj, omegaSamps_proj,
                                   samples$s2samps, nsamps=50,
                                   groups_to_plot=to_plot,
-                                  probRegion=0.95, legend=FALSE)
+                                  probRegion=0.95, legend=TRUE, ...)
 
   biplot <- covarianceBiplot(Vstar, Osamps_proj, omegaSamps_proj, samples$s2samps,
-                             groups_to_plot=to_plot, nlabeled=40)
+                             groups_to_plot=to_plot, nlabeled=40, label_size=label_size,
+                             col_values=col_values)
 
-  if(is.null(dev.list()))
-    dev.new(width=14, height=7)
-
-  posterior_plot + biplot
-
+  
+  if(plot_type == "both") {
+    if(is.null(dev.list()))
+      dev.new(width=14, height=7)
+  
+    posterior_plot + biplot
+  }
+  else if(plot_type == "posterior") {
+    if(is.null(dev.list()))
+      dev.new()
+    posterior_plot
+  } else if(plot_type == "biplot" ) {
+    if(is.null(dev.list()))
+      dev.new()
+    biplot
+  } else {
+    stop("Invalid plot_type")
+  }
+  
 }
 
 #' @export
-rotate_basis <- function(V, Osamps, omegaSamps, s2samps, group1=1, group2=2) {
+rotate_basis <- function(V, samples, group1=1, group2=NULL) {
 
-  g1 <- 1
-  g2 <- 2
-
-  pmPsi1 <- getPostMeanPsi(Osamps[, , g1 , ],
-                           omegaSamps[, g1, ],
-                           s2samps[g1, ], 100)
-  pmPsi2 <- getPostMeanPsi(Osamps[, , g2 , ],
-                           omegaSamps[, g2, ],
-                           s2samps[g2, ], 100)
-
-  R <- s
-  O <- svd(pmPsi1[1:R, 1:R] - pmPsi2[1:R, 1:R])
-
-  Vstar <- V[, 1:R] %*% O
-
+  Osamps <- samples$Osamps
+  s2samps <- samples$s2samps
+  omegaSamps <- samples$omegaSamps
+  S <- ncol(V)
+  
+  pmPsi1 <- getPostMeanPsi(Osamps[, , group1 , ],
+                           omegaSamps[, group1, ],
+                           s2samps[group1, ], 100)
+  if(is.null(group2)) {
+    
+    ## Compare subspace that explains largest source of variability
+    O <- svd(pmPsi1[1:S, 1:S])$u
+    
+  } else {
+    ## Compare largest difference between 2 groups
+    pmPsi2 <- getPostMeanPsi(Osamps[, , group2 , ],
+                             omegaSamps[, group2, ],
+                             s2samps[group2, ], 100)
+    O <- svd(pmPsi1[1:S, 1:S] - pmPsi2[1:S, 1:S])$u
+    
+  }
+  
+  Vstar <- V[, 1:S] %*% O
   list(rotV=Vstar, rotMat=O)
 
 }
 
-
-
-
 #' @export
-compute_variance_explained <- function(V, Ylist, nvec, s2vec) {
+compute_variance_explained <- function(V, Ylist, s2vec) {
 
     P <- nrow(V)
     S <- ncol(V)
+    nvec <- sapply(Ylist, function(x) nrow(x))
     ngroups <- length(Ylist)
 
     ## Use qudratic fomr to compute goodness of fit
