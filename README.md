@@ -6,15 +6,7 @@
 Multi-group Shared Subspace Covariance
 Estimation
 
-<!-- [![Travis-CI Build Status](https://travis-ci.org/thomasp85/patchwork.svg?branch=master)](https://travis-ci.org/thomasp85/patchwork) -->
-
-<!-- [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/thomasp85/patchwork?branch=master&svg=true)](https://ci.appveyor.com/project/thomasp85/patchwork) -->
-
-<!-- [![CRAN_Release_Badge](http://www.r-pkg.org/badges/version-ago/patchwork)](https://CRAN.R-project.org/package=patchwork) -->
-
-<!-- [![CRAN_Download_Badge](http://cranlogs.r-pkg.org/badges/patchwork)](https://CRAN.R-project.org/package=patchwork) -->
-
-To do
+R package for the shared subspace model described in [https://arxiv.org/abs/1607.03045](http://jmlr.org/papers/v20/18-484.html)
 
 ## Installation
 
@@ -31,11 +23,6 @@ The usage of `mgCov`
 
 ``` r
 library(mgCov)
-#> Warning: package 'rstiefel' was built under R version 3.5.2
-#> Warning: package 'tibble' was built under R version 3.5.2
-#> Warning: package 'dplyr' was built under R version 3.5.2
-#> Warning: package 'stringr' was built under R version 3.5.2
-#> Warning: package 'forcats' was built under R version 3.5.2
 data(leukemia)
 
 S <- getRank(data_list)
